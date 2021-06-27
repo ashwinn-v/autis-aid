@@ -4,6 +4,7 @@ from tensorflow.keras.models import load_model
 from flask import Flask, render_template, url_for, Response
 import cv2
 import datetime
+from twilio.rest import Client
 from werkzeug.utils import redirect
 
 
@@ -12,16 +13,20 @@ app = Flask(__name__)
 observations = []
 
 
+account_sid = 'AC86a224f852c64d861eb5e81e1f84f607'
+auth_token = 'c8e59d00ba328f35f461ccc690197c5c'
+client = Client(account_sid, auth_token)
+
+
 class Emotion:
     def __init__(self, emotion):
         timestamp = datetime.datetime.now()
         self.emotion = emotion
         self.date_time = timestamp.strftime("% Y-%m-%d % H: % M: % S")
 
-
-    #model = load_model('bin_aut.h5')
+    # model = load_model('bin_aut.h5')
 model = load_model('Mymodel.h5')
-#model.compile(optimizer=RMSprop(learning_rate=1e-5), loss='binary_crossentropy', metrics=['accuracy'])
+# model.compile(optimizer=RMSprop(learning_rate=1e-5), loss='binary_crossentropy', metrics=['accuracy'])
 
 model.compile(optimizer='adam', loss='categorical_crossentropy',
               metrics=['accuracy'])
@@ -36,7 +41,7 @@ def gen_frames():
         else:
             detector = cv2.CascadeClassifier(
                 'haarcascade_frontalface_default.xml')
-            #eye_cascade = cv2.CascadeClassifier('Haarcascades/haarcascade_eye.xml')
+            # eye_cascade = cv2.CascadeClassifier('Haarcascades/haarcascade_eye.xml')
             faces = detector.detectMultiScale(frame, 1.1, 7)
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             # Draw the rectangle around each face
@@ -47,16 +52,22 @@ def gen_frames():
                 roi_color = frame[y:y+h, x:x+w]
                 if(i % 100 == 0):
                     img = roi_color
-                    #img = cv2.imread('')
+                    # img = cv2.imread('')
                     img = cv2.resize(img, (150, 150))
                     img = np.reshape(img, [1, 150, 150, 3])
-                    #classes = model.predict(img)
+                    # classes = model.predict(img)
                     classes = (model.predict(img) > 0.5).astype("int32")
                     global emotion
                     if classes[0][2] == 1:
                         emotion = Emotion('Neutral')
                     else:
                         emotion = Emotion('Distress')
+                        message = client.messages.create(
+                            messaging_service_sid='MGe4043595637b19189f95b497ebf0c7b2',
+                            body='Your kid is not feeling well',
+                            to='+919400775095'
+                        )
+                        print(message.sid)
 
                     observations.append(emotion)
 
